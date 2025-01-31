@@ -13,6 +13,7 @@ import numpy as np
 import time
 import logging
 import argparse
+from tqdm import tqdm
 
 from modules.setup_logger import logger
 
@@ -40,7 +41,7 @@ decode_fail_frame = pd.DataFrame({
 )
 
 #Init 
-def main(args, row, col, injv, fpgaCon:bool=True, fpgaDiscon:bool=True):
+def main(args, row, col, fpgaCon:bool=True, fpgaDiscon:bool=True):
 
     # Ensures output directory exists
     if os.path.exists(args.outdir) == False:
@@ -59,24 +60,20 @@ def main(args, row, col, injv, fpgaCon:bool=True, fpgaDiscon:bool=True):
     #Define YAML path variables
     pathdelim=os.path.sep #determine if Mac or Windows separators in path name
 
-    #enable injection
     astro.enable_pixel(col=col,row=row)    
-    astro.init_injection(inj_voltage=injv, onchip=onchipBool)
 
     astro.enable_spi() 
     astro.asic_configure()
     astro.update_asic_tdac_row(0)
     logger.info("Chip configured")
     astro.dump_fpga()
-
-    astro.start_injection()
     
     max_errors = args.errormax
     i = 0
     errors = 0
     if args.maxtime is not None: 
         end_time=time.time()+(args.maxtime*60.)
-    strPix = "r"+str(row)+"c"+str(col)+"_"+str(injv/1000.)+"VInj_"
+    strPix = "r"+str(row)+"c"+str(col)+"_"
     fname=strPix if not args.name else args.name+strPix+"_"
 
     # Prepares the file paths 
@@ -188,7 +185,6 @@ def main(args, row, col, injv, fpgaCon:bool=True, fpgaDiscon:bool=True):
     except Exception as e:
         logger.exception(f"Encountered Unexpected Exception! \n{e}")
     finally:  
-        astro.stop_injection()
         if args.saveascsv: 
             csvframe.index.name = "dec_order"
             csvframe.to_csv(csvpath) 
@@ -223,12 +219,6 @@ if __name__ == "__main__":
 
     parser.add_argument('-R', '--rowrange', action='store', default=[0,12], type=int, nargs=2,
                     help =  'Loop over given range of rows. Default: 0 34')
-    
-    parser.add_argument('-I', '--injectRange', action='store', default=[200,1000], type=int, nargs=2,
-                    help =  'Range of injection voltages to scan through in mV. Default: 100 1000')
-    
-    parser.add_argument('-s', '--injectStep', action='store', default=100, type=float,
-                    help =  'Step used for scanning through injections in mV. Default: 100')
 
     parser.add_argument('-E', '--errormax', action='store', type=int, default='100', 
                     help='Maximum index errors allowed during decoding. DEFAULT 100')
@@ -271,19 +261,24 @@ if __name__ == "__main__":
     #If using v3, use config_v3_none
     config = 'config_v4_none'
 
-    injs = [args.injectRange[0]+(args.injectStep*x) for x in range(int((args.injectRange[1]-args.injectRange[0])/args.injectStep) + 1)]
-    
-    for r in range(args.rowrange[0],args.rowrange[1]+1,1):
-        for c in range(args.colrange[0],args.colrange[1]+1,1):
+    start_first = True
 
-            if c>15: continue
+    for r in tqdm(range(args.rowrange[0],args.rowrange[1]+1,1),position=0, leave=False, desc='Row '):
+        for c in tqdm(range(args.colrange[0],args.colrange[1]+1,1), position=1, leave=False, desc='Col '):
 
-            for i in injs:
-                #loop through injection array with single pixel enabled, analog automatically enabled in whatever column is being injected into
-                if i==args.injectRange[0]:#first injection - connect to FPGA but leave open
-                    main(args, r, c, float(i), fpgaDiscon=False)
-                elif i==args.injectRange[1]: #final injection - disconnect from FPGA upon completion
-                    main(args, r, c, float(i), fpgaCon=False)
-                else: #for bulk of pixels, FPGA is already open. Do not reconnect and do not disconnect when completed, leave it open for the next injection
-                    main(args, r, c, float(i), fpgaCon=False, fpgaDiscon=False)
+            if c>15 or r>13: continue
+
+            if start_first:
+                main(args, r, c, fpgaDiscon=False)
+                start_first = False
+            else:
+                main(args, r, c, fpgaCon=False, fpgaDiscon=False)
+
+                
+            #if i==args.injectRange[0]:#first injection - connect to FPGA but leave open
+            #main(args, r, c, fpgaDiscon=False)
+            #elif i==args.injectRange[1]: #final injection - disconnect from FPGA upon completion
+            #main(args, r, c, fpgaCon=False)
+            #else: #for bulk of pixels, FPGA is already open. Do not reconnect and do not disconnect when completed, leave it open for the next injection
+            #main(args, r, c, fpgaCon=False, fpgaDiscon=False)
             

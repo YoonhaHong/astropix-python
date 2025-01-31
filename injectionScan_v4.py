@@ -199,6 +199,9 @@ def main(args, injv, fpgaCon:bool=True, fpgaDiscon:bool=True):
         logger.info("Program terminated successfully")
     # END OF PROGRAM
 
+    print(i)
+
+
 
     
 
@@ -267,7 +270,8 @@ if __name__ == "__main__":
     onchipBool = True 
     #If using v2, use config_none
     #If using v3, use config_v3_none
-    config = 'config_v4_none'
+    #config = 'config_v4_none'
+    config = 'config_v4_none_VNFOLL1'
 
     injs = [args.injectRange[0]+(args.injectStep*x) for x in range(int((args.injectRange[1]-args.injectRange[0])/args.injectStep) + 1)]
     for i in injs:
