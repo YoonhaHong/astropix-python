@@ -13,6 +13,7 @@ import numpy as np
 import time
 import logging
 import argparse
+from tqdm import tqdm
 
 from modules.setup_logger import logger
 
@@ -252,6 +253,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Logging
+    #loglevel = logging.ERROR
+    #loglevel = logging.DEBUG
     loglevel = logging.INFO
     formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
     fh = logging.FileHandler(logname)
@@ -267,14 +270,14 @@ if __name__ == "__main__":
 
     #If using v2, use injection created by injection card
     #If using v3, use injection created with integrated DACs on chip
-    onchipBool = True 
+    onchipBool = True
     #If using v2, use config_none
     #If using v3, use config_v3_none
     #config = 'config_v4_none'
-    config = 'config_v4_none_VNFOLL1'
+    config = 'config_v4_none'
 
     injs = [args.injectRange[0]+(args.injectStep*x) for x in range(int((args.injectRange[1]-args.injectRange[0])/args.injectStep) + 1)]
-    for i in injs:
+    for i in tqdm(injs, desc=f"Injectoin Voltage"):
         #loop through injection array with single pixel enabled, analog automatically enabled in whatever column is being injected into
         if i==args.injectRange[0]:#first injection - connect to FPGA but leave open
             main(args, float(i), fpgaDiscon=False)

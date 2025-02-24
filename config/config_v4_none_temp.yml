@@ -71,12 +71,12 @@ astropix4:
             vncomp:             [6, 2]
             vpfoll:             [6, 10]
             nu16:               [6, 0]
-            vprec:              [6, 10]
+            vprec:              [6, 12]
             vnrec:              [6, 10]
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 1000]
+            thpix:              [10, 610] 
             vcasc2:             [10, 625]
             vtest:              [10, 682]
             vinj:               [10, 171]

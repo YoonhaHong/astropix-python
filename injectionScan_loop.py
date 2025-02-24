@@ -251,7 +251,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Logging
-    loglevel = logging.INFO
+    loglevel = logging.ERROR
     formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
     fh = logging.FileHandler(logname)
     fh.setFormatter(formatter)
