@@ -215,7 +215,7 @@ class astropixRun:
     def update_asic_tdac_row(self, row: int):
         self.asic.update_asic_tdacrow(row)
 
-    def enable_spi(self):
+    def enable_spi(self, v3clkdiv: int=5):
         """
         Starts spi bus. 
 
@@ -225,9 +225,9 @@ class astropixRun:
         self.nexys.spi_enable()
         self.nexys.spi_reset_fpga_readout()
         # Set SPI clockdivider
-        # freq = 100 MHz/spi_clkdiv
+        # freq = 100 MHz/2*(spi_clkdiv+1)
         if self.chipversion==4: self.nexys.spi_clkdiv = 40
-        else: self.nexys.spi_clkdiv = 5
+        else: self.nexys.spi_clkdiv = v3clkdiv
         self.nexys.send_routing_cmd()
         logger.info("SPI ENABLED")
 

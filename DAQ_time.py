@@ -41,6 +41,12 @@ def main(args):
     for r in range(0, 35, 1):
         for c in range(3, 35, 1):
             astro.enable_pixel(c, r)
+    
+    astro.disable_pixel(27, 10) #w02s03
+    astro.disable_pixel(26, 6 ) #w02s03
+    astro.disable_pixel(31, 8 ) #w02s03 
+    astro.disable_pixel(32, 12) #w02s03
+    #astro.disable_pixel(12, 15) #w02s03 KR voltage card
 
     if args.noisescandir is not None:
         noise_scan_summary = f"{args.noisescandir}/{args.name}_{args.threshold:.0f}_summary.csv"
@@ -165,17 +171,17 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Astropix Driver Code')
-    parser.add_argument('-n', '--name', default='APSw101s04', required=False,
+    parser.add_argument('-n', '--name', default='w02s03', required=False,
                     help='Option to give additional name to output files upon running')
 
-    parser.add_argument('-o', '--outdir', default='/home/becal-astropix/AstroPix_yoonha/data_v3/data_astropix-python/eff_W08S05', required=False,
+    parser.add_argument('-o', '--outdir', default='../data', required=False,
                     help='Output Directory for all datafiles')
 
-    parser.add_argument('-y', '--yaml', action='store', type=str, default = 'testconfig_v3',
-                    help = 'filepath (in config/ directory) .yml file containing chip configuration. Default: config/testconfig.yml (All pixels off)')
+    parser.add_argument('-y', '--yaml', action='store', type=str, default = 'config_v3_none_may28',
+                    help = 'filepath (in config/ directory) .yml file containing chip configuration.')
 
-    parser.add_argument('-t', '--threshold', type = float, action='store', default=400,
-                        help = 'Threshold voltage for digital ToT (in mV). DEFAULT value in yml OR 100mV if voltagecard not in yml')
+    parser.add_argument('-t', '--threshold', type = float, action='store', default=200,
+                        help = 'Threshold voltage for digital ToT (in mV). DEFAULT value in yml OR 200mV if voltagecard not in yml')
     
     parser.add_argument('-ns', '--noisescandir', action='store', required=False, type=str, default = None,
                     help = 'directory path noise scan summary file containing chip noise infomation.')

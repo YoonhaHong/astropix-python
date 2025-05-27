@@ -1,8 +1,7 @@
 """
-Updated version of beam_test.py using the astropix.py module
+Take data with given time, and then decode offline
 
-Author: Autumn Bauman 
-Maintained by: Amanda Steinhebel, amanda.l.steinhebel@nasa.gov
+Author: Yoonha Hong
 """
  # aiming for fast readout
  # injection wit high rate 
@@ -21,73 +20,36 @@ import logging
 import argparse
 import re
 from tqdm import tqdm
+import warnings
 
 from modules.setup_logger import logger
 
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
-# This sets the logger name.
-logdir = "./runlogs/"
-if os.path.exists(logdir) == False:
-    os.mkdir(logdir)
-logname = "./runlogs/AstropixRunlog_" + time.strftime("%Y%m%d-%H%M%S") + ".log"
+def injection_each_pixel(args, astro, col, row):
 
-#Initialize
-def main(args):
 
-    # Ensures output directory exists
-    if os.path.exists(args.outdir) == False:
-        os.mkdir(args.outdir)
-        
-    # Prepare everything, create the object
-    astro = astropixRun(chipversion=3, inject=args.inject) 
-
-    #Initiate asic with pixel mask as defined in yaml and analog pixel in row0 defined with input argument -a
-    astro.asic_init(yaml=args.yaml, analog_col = args.analog)
+    print(f"Start injecting for COL{col} ROW{row}")
 
     for r in range(0, 35, 1):
         for c in range(0, 35, 1):
             astro.disable_pixel(c, r)
-
-    astro.init_voltages(vthreshold=args.threshold)     
-  
-    astro.init_injection(inj_voltage=args.vinj, 
-                             pulseperset=1, initdelay=100, inj_period=args.inject_period, clkdiv=300,
-                             onchip=onchipBool)
+            
+    astro.asic.set_inj_col(col, True)
+    astro.asic.set_inj_row(row, True)
+    astro.enable_pixel(col=col, row=row)
     
-    #astro.asic.set_inj_col(args.inject[1]+10, True)
-    
-    #astro.asic.set_inj_row(args.inject[0]+10, True)
-
-    astro.enable_pixel(args.inject[1],args.inject[0]) #col, row  
-    #astro.enable_pixel(args.inject[1]+10, args.inject[0]+10)
-    #astro.enable_pixel(args.inject[1]+10,args.inject[0])
-    #astro.enable_pixel(args.inject[1],args.inject[0]+10)
-
     #Enable final configuration
-    astro.enable_spi() 
+    astro.enable_spi(args.clkdiv) 
     astro.asic_configure()
     logger.info("Chip configured")
     astro.dump_fpga()
 
-
     astro.start_injection()
-    
+
     i = 0
-    errors = 0 # Sets the threshold 
-    
-
-    fname="" if not args.name else args.name+"_"
-
-    # Save final configuration to output file    
-    ymlpathout=args.outdir +"/"+args.yaml+"_"+time.strftime("%Y%m%d-%H%M%S")+".yml"
-    try:
-        astro.write_conf_to_yaml(ymlpathout)
-    except FileNotFoundError:
-        ypath = args.yaml.split('/')
-        ymlpathout=args.outdir+"/"+ypath[1]+"_"+time.strftime("%Y%m%d-%H%M%S")+".yml"
-        astro.write_conf_to_yaml(ymlpathout)
     # Prepare text files/logs
-    bitpath = args.outdir + '/' + fname + time.strftime("%Y%m%d-%H%M%S") + '.log'
+    bitpath = os.path.join(args.outdir, f"c{col}r{row}.log")
     # textfiles are always saved so we open it up 
     bitfile = open(bitpath,'w')
     # Writes all the config information to the file
@@ -112,7 +74,7 @@ def main(args):
                         
                         # Update the progress bar every iteration or based on your desired frequency
                         elapsed_time = time.time() - start_time
-                        pbar.update(elapsed_time - pbar.n)  # pbar.n is the current progress
+                        pbar.update(round(elapsed_time - pbar.n,2))  # pbar.n is the current progress
 
 
 
@@ -120,13 +82,13 @@ def main(args):
     # Ends program cleanly when a keyboard interupt is sent.
     except KeyboardInterrupt:
         logger.info("Keyboard interupt. Program halt!")
-    # Catches other exception
+    # Catches other exceptions
     except Exception as e:
         logger.exception(f"Encountered Unexpected Exception! \n{e}")
     finally:
-        astro.stop_injection()   
+        astro.stop_injection()
         bitfile.close() # Close open file        
-        astro.close_connection() # Closes SPI
+
         logger.info("Program terminated successfully")
 
         csvname = os.path.basename(bitpath)[:-4] + '_offline.csv'
@@ -145,26 +107,29 @@ def main(args):
                     'hittime'
             ])
         
+    if args.saveascsv:
         f=np.loadtxt(bitpath, skiprows=7, dtype=str)
         #isolate only bitstream without b'...' structure 
         strings = [a[2:-1] for a in f[:,1]]
-
-        for i,s in enumerate(strings):
-            #convert hex to binary and decode
+       
+        for i, s in tqdm(enumerate(strings), desc=f'decoding... to {csvname}', ncols=100, unit='readouts', total=len(strings),
+                         bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{percentage:3.0f}%]'):
+            # Convert hex to binary and decode
             rawdata = list(binascii.unhexlify(s))
             try:
-                hits = astro.decode_readout(rawdata, i, printer = False, chip_version=3)
-                #Lose hittime - computed during decoding so this info is lost when decoding offline (don't even get relative times because they are processed in offline decoding at machine speed)
-                hits['hittime']=0.0
-                #Populate csv
+                hits = astro.decode_readout(rawdata, i, printer=False, chip_version=3)
+                # Lose hittime - computed during decoding so this info is lost when decoding offline
+                hits['hittime'] = 0.0
+                # Populate csv
                 csvframe = pd.concat([csvframe, hits])
-            except IndexError: #cannot decode empty bitstream so skip it
+            except IndexError:  # Cannot decode empty bitstream, so skip it
                 continue
 
         #Save csv
         csvframe.index.name = "dec_order"
         logger.info(f"Saving to {csvpath}")
         csvframe.to_csv(csvpath)
+
         
 
 
@@ -175,32 +140,39 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Astropix Driver Code')
-    parser.add_argument('-n', '--name', default='inject+w02s03', required=False,
-                    help='Option to give additional name to output files upon running')
-
     parser.add_argument('-o', '--outdir', default='../data', required=False,
                     help='Output Directory for all datafiles')
 
     parser.add_argument('-y', '--yaml', action='store', type=str, default = 'config_v3_none_may28',
-                    help = 'filepath (in config/ directory) .yml file containing chip configuration. Default: config/testconfig.yml (All pixels off)')
+                    help = 'filepath (in config/ directory) .yml file containing chip configuration.')
+    
+    parser.add_argument('-clk', '--clkdiv', type = int, action='store', default=5,
+                        help = 'SPI clk divider')
 
     parser.add_argument('-t', '--threshold', type = float, action='store', default=250,
-                        help = 'Threshold voltage for digital ToT (in mV). DEFAULT value in yml OR 100mV if voltagecard not in yml')
-        
-    parser.add_argument('-v','--vinj', action='store', default = 300, type=float,
-                    help = 'Specify injection voltage (in mV). DEFAULT None (uses value in yml)')
+                        help = 'Threshold voltage for digital ToT (in mV). DEFAULT value in yml OR 200mV if voltagecard not in yml')
     
-    parser.add_argument('-i', '--inject', action='store', default=[10, 10], type=int, nargs=2,
-                help =  'Turn on injection in the given row and column. Default: No injection')
+    parser.add_argument('-v','--vinj', action='store', default = 700, type=float,
+                    help = 'Specify injection voltage (in mV). DEFAULT None (uses value in yml)')
+            
+    parser.add_argument('-C', '--colrange', action='store', default=[3, 35], type=int, nargs=2,
+                help =  'Column range for injection scan')
+                
+    parser.add_argument('-R', '--rowrange', action='store', default=[0, 35], type=int, nargs=2,
+                help =  'Row range for injection scan')
 
     parser.add_argument('-p', '--inject_period', action='store', default=2, type=int,
                 help =  'Period of injection 1: ~ 1 KHz, 2: ~ 500 Hz')
 
+    parser.add_argument('-M', '--maxtime', type=float, action='store', default=12,
+                    help = 'Maximum run time (in seconds)')
+    
+    parser.add_argument('-c', '--saveascsv', action='store_true', default=False, required=False, 
+                    help='save output files as CSV. If False, save as txt. Default: FALSE')
+
     parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = 0,
                     help = 'Turn on analog output in the given column. Default: Column 0.')
 
-    parser.add_argument('-M', '--maxtime', type=float, action='store', default=30,
-                    help = 'Maximum run time (in seconds)')
 
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
                     help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: I')
@@ -222,20 +194,28 @@ if __name__ == "__main__":
         loglevel = logging.CRITICAL
     
     # Logging 
-    formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
-    fh = logging.FileHandler(logname)
-    fh.setFormatter(formatter)
-    sh = logging.StreamHandler()
-    sh.setFormatter(formatter)
 
-    logging.getLogger().addHandler(sh) 
-    logging.getLogger().addHandler(fh)
-    logging.getLogger().setLevel(loglevel)
+        # Ensures output directory exists
+    if os.path.exists(args.outdir) == False:
+        os.mkdir(args.outdir)
+        
+    # Prepare everything, create the object
+    astro = astropixRun(chipversion=3) 
 
-    logger = logging.getLogger(__name__)
+    #Initiate asic with pixel mask as defined in yaml and analog pixel in row0 defined with input argument -a
+    astro.asic_init(yaml=args.yaml, analog_col = args.analog)
+    
 
-    #If using v2, use injection created by injection card
-    #If using v3, use injection created with integrated DACs on chip
-    onchipBool = True 
 
-    main(args)
+    astro.init_voltages(vthreshold=args.threshold)     
+
+    astro.init_injection(inj_voltage=args.vinj, 
+                             pulseperset=1, initdelay=100, inj_period=args.inject_period, clkdiv=300,
+                             onchip=True) #If using v3, use injection created with integrated DACs on chip
+    
+    for col in range(args.colrange[0], args.colrange[1], 1):
+        for row in range(args.rowrange[0], args.rowrange[1], 1):
+            injection_each_pixel(args, astro, col, row)
+            time.sleep(2) # Sleep to avoid overloading the SPI connection
+
+    astro.close_connection() # Closes SPI
