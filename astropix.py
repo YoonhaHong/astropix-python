@@ -31,7 +31,7 @@ class astropixRun:
     # Init just opens the chip and gets the handle. After this runs
     # asic_config also needs to be called to set it up. Seperating these 
     # allows for simpler specifying of values. 
-    def __init__(self, chipversion=2, inject:int = None, offline:bool=False):
+    def __init__(self, chipversion=3, fpga_index:int = 0, inject:int = None, offline:bool=False):
         """
         Initalizes astropix object. 
         No required arguments
@@ -49,13 +49,13 @@ class astropixRun:
         if offline:
             logger.info("Creating object for offline analysis")
             self.nexys = Nexysio()
-            self.handle=self.nexys.autoopen()
+            self.handle=self.nexys.open(fpga_index)
             self.asic = Asic(self.handle, self.nexys)
         else:
             self._asic_start = False
             self.nexys = Nexysio()
             self._wait_progress(2)
-            self.handle = self.nexys.autoopen() 
+            self.handle = self.nexys.open(fpga_index) 
                 
             # Ensure it is working
             logger.info("Opened FPGA, testing...")

@@ -8,10 +8,13 @@ Author: Yoonha Hong
  # with out decoding
 
 #from msilib.schema import File
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 #from http.client import SWITCHING_PROTOCOLS
 from astropix import astropixRun
 import modules.hitplotter as hitplotter
-import os
 import binascii
 import pandas as pd
 import numpy as np
@@ -27,39 +30,25 @@ from modules.setup_logger import logger
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def main(args):
-
-    # Ensures output directory exists
-    if os.path.exists(args.outdir) == False:
-        os.mkdir(args.outdir)
         
     # Prepare everything, create the object 
-    astro = astropixRun(chipversion=3, fpga_index=0) 
+    astro = astropixRun(chipversion=3, fpga_index=args.fpga_index) 
 
     #Initiate asic with pixel mask as defined in yaml and analog pixel in row0 defined with input argument -a
+
     astro.asic_init(yaml=args.yaml, analog_col = args.analog)
 
     for r in range(0, 35, 1):
         for c in range(3, 35, 1):
             astro.enable_pixel(c, r)
     
-    astro.disable_pixel(27, 10) #w02s03
-    astro.disable_pixel(26, 6 ) #w02s03
-    astro.disable_pixel(31, 8 ) #w02s03 
-    astro.disable_pixel(32, 12) #w02s03
-    #astro.disable_pixel(12, 15) #w02s03 KR voltage card
-
-    if args.noisescandir is not None:
-        noise_scan_summary = f"{args.noisescandir}/{args.name}_{args.threshold:.0f}_summary.csv"
-        nss = pd.read_csv(noise_scan_summary)
-        pixels_to_mask = nss[nss['disable'] > 0]
-        nmask=0
-        
-
-        for index, row in pixels_to_mask.iterrows():
-            print(f"Row: {row['row']}, Col: {row['col']}, Disable: {row['disable']}")
-            astro.disable_pixel(int(row['col']), int(row['row']))
-            nmask+=1
-        print(nmask, " pixels are masked! ")
+    # Disable pixels
+    if args.masking is not None:
+        pattern = r"c(\d+)r(\d+)"
+        for match in re.findall(pattern, args.masking):
+            col, row = map(int, match)
+            print(f"Disabling pixel at Col: {col}, Row: {row}")
+            astro.disable_pixel(col, row)
 
     astro.init_voltages(vthreshold=args.threshold)     
 
@@ -70,10 +59,14 @@ def main(args):
     astro.dump_fpga()
 
     i = 0
+    ymlpath = os.path.join(args.outdir, args.name) + ".yml"
+    bitpath = os.path.join(args.outdir, args.name) + ".log"
+
+    """
     fname="" if not args.name else args.name+"_"
 
     # Save final configuration to output file    
-    ymlpathout=args.outdir +"/"+args.yaml+"_"+time.strftime("%Y%m%d-%H%M%S")+".yml"
+    ymlpathout=args.outdir + "/"+ fname + time.strftime("%Y%m%d-%H%M%S")+".yml"
     try:
         astro.write_conf_to_yaml(ymlpathout)
     except FileNotFoundError:
@@ -83,8 +76,10 @@ def main(args):
     # Prepare text files/logs
     bitpath = args.outdir + '/' + fname + time.strftime("%Y%m%d-%H%M%S") + '.log'
     # textfiles are always saved so we open it up 
-    bitfile = open(bitpath,'w')
     # Writes all the config information to the file
+    """
+    astro.write_conf_to_yaml(ymlpath)
+    bitfile = open(bitpath,'w')
     bitfile.write(astro.get_log_header())
     bitfile.write(str(args))
     bitfile.write("\n")
@@ -107,6 +102,12 @@ def main(args):
                         # Update the progress bar every iteration or based on your desired frequency
                         elapsed_time = time.time() - start_time
                         pbar.update(round(elapsed_time - pbar.n,2))  # pbar.n is the current progress
+
+                        i+= 1  # Increment readout count
+
+                        if i % 200 == 0:  # Print every 200 readouts(1.2s)
+                            logger.info(f"{i}th readout: \n {binascii.hexlify(readout)[0:100]}...")  # Print first 100 characters of hex readout
+                            astro.decode_readout(readout, i, printer=True, chip_version=3) 
 
 
 
@@ -171,6 +172,10 @@ def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Astropix Driver Code')
+
+    parser.add_argument('fpga_index', type=int, action='store', default=0,
+                    help='FPGA index to use. Default: 0')
+
     parser.add_argument('-n', '--name', default='w02s03', required=False,
                     help='Option to give additional name to output files upon running')
 
@@ -183,10 +188,10 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--threshold', type = float, action='store', default=200,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT value in yml OR 200mV if voltagecard not in yml')
     
-    parser.add_argument('-ns', '--noisescandir', action='store', required=False, type=str, default = None,
-                    help = 'directory path noise scan summary file containing chip noise infomation.')
+    parser.add_argument('-m', '--masking', action='store', required=False, type=str, default = None,
+                        help = "Pixels to be masked. If None, no masking is applied. Format: 'c0r0,c1r1,c2r2' where cXrY is column X row Y. Default: None")
     
-    parser.add_argument('-c', '--saveascsv', action='store_true', default=True, required=False, 
+    parser.add_argument('-c', '--saveascsv', action='store_true', default=False, required=False, 
                     help='save output files as CSV. If False, save as txt. Default: FALSE')
 
     parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = 0,
@@ -215,5 +220,13 @@ if __name__ == "__main__":
         loglevel = logging.CRITICAL
     
     # Logging 
+    formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
+    sh = logging.StreamHandler()
+    sh.setFormatter(formatter)
+
+    logging.getLogger().addHandler(sh) 
+    logging.getLogger().setLevel(loglevel)
+
+    logger = logging.getLogger(__name__)
 
     main(args)
