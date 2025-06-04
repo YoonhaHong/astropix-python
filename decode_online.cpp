@@ -10,6 +10,10 @@
 #include "TTree.h"
 #include "TH1D.h"
 #include "TString.h"
+#include <iostream>
+#include <csignal>
+#include <atomic>
+
 #define SAMPLE_CLOCK_PERIOD_NS 5
 
 using namespace std;
@@ -18,6 +22,13 @@ using namespace std::chrono;
 const int WAIT_TIME_MS = 5000; // Initial wait time in milliseconds
 const int CYCLE_READ_MS = 5; // Time to wait for new lines in milliseconds
 const int CYCLE_DECODE_MS = 600; // Time to decode lines in milliseconds
+
+std::atomic<bool> stop(false);  // 시그널 핸들러에서 안전하게 공유할 변수
+
+void signal_handler(int signum) {
+    std::cout << "\n[!] Interrupt signal (" << signum << ") received.\n";
+    stop = true;
+}
 
 // Function to convert a hex string to a binary string
 std::string hexToBinary(const std::string& hex) {
@@ -77,6 +88,7 @@ int decode_online(string filename){
         cerr << "Error opening file: " << filename << endl;
         return 1;
     }
+    std::signal(SIGINT, signal_handler);
 
     // ****************************** 
     // Define variables for the TTree
@@ -123,6 +135,7 @@ int decode_online(string filename){
     TH1F* RowLocation = new TH1F("RowLocation", ";Location;", 35, 0, 35);
     TH2F* ColToTvsLocation = new TH2F("ColToT", ";Col Location;ToT [us]", 35, 0, 35, 150, 0, 30);
     TH2F* RowToTvsLocation = new TH2F("RowToT", ";Row Location;ToT [us]", 35, 0, 35, 150, 0, 30);
+    TH2I* Hitmap = new TH2I("Hitmap", ";Col;Row", 35, 0, 35, 35, 0, 35);
     // ****************************** 
 
     int nLine=0;
@@ -133,7 +146,7 @@ int decode_online(string filename){
 
 
     int nNoLine = 0;
-    while(true){
+    while(!stop){
         auto cycle_start = steady_clock::now();
 
         while(true){
@@ -263,7 +276,7 @@ int decode_online(string filename){
 
         if(nNoLine >= 100){
             cout << "No new lines for 100 cycles, exiting..." << endl;
-            break; // Exit after 10 cycles with no new lines
+            stop=true; // Exit after 10 cycles with no new lines
         }
     }
 

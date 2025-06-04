@@ -9,4 +9,4 @@ for session in $(tmux list-sessions -F '#S'); do
   done
 done
 
-tmux kill-session -t BIC
+#tmux kill-session -t BIC

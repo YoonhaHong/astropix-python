@@ -35,13 +35,12 @@ def parse_ini_for_producers(ini_path):
             else:
                 full_config[key] = val
 
-        full_config['outdir'] = outdir
         last_config = full_config
         parsed.append((prod.strip(), full_config))
 
     return parsed, outdir
 
-def build_args(config_dict):
+def build_args(config_dict, outdir):
     args = []
     for key, val in config_dict.items():
         if key in ["serial", "plane"]:
@@ -53,6 +52,8 @@ def build_args(config_dict):
                 args.append(" -c")
         else:
             args.extend([f"--{key}", val])
+    
+    args.append(f"--outdir {outdir}")
     return " ".join(args)
 
 def start_tmux_producers(ini_file):
@@ -64,14 +65,18 @@ def start_tmux_producers(ini_file):
 
     producers, outdir = parse_ini_for_producers(ini_file)
     if os.path.exists(outdir):
-        print(f"Output directory '{outdir}' already exists. Modify \'outdir\' at {ini_file}.")
-        exit(1)
+        #print(f"Output directory '{outdir}' already exists. Modify \'outdir\' at {ini_file}.")
+        #exit(1)
+        new_outdir = f"{outdir}_{time.strftime('%Y%m%d-%H%M%S')}"
+        print(f"Output directory '{outdir}' already exists. Saving to '{new_outdir}' instead.")
+        os.makedirs(new_outdir, exist_ok=True)
+        outdir = new_outdir
     else:
         os.makedirs(outdir, exist_ok=True)
         print(f"Output directory '{outdir}' created.")
 
     for i, (name, config) in enumerate(producers):
-        args = build_args(config)
+        args = build_args(config, outdir)
         win = session.new_window(attach=False, window_name=name)
         win.active_pane.send_keys(f"{PYTHON_EXECUTABLE} {PRODUCER_SCRIPT} {args}")
 
