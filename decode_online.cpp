@@ -20,7 +20,7 @@ using namespace std;
 using namespace std::chrono;
 
 const int WAIT_TIME_MS = 5000; // Initial wait time in milliseconds
-const int CYCLE_READ_MS = 5; // Time to wait for new lines in milliseconds
+const int CYCLE_READ_MS = 100; // Time to wait for new lines in milliseconds
 const int CYCLE_DECODE_MS = 600; // Time to decode lines in milliseconds
 
 std::atomic<bool> stop(false);  // 시그널 핸들러에서 안전하게 공유할 변수
@@ -254,12 +254,16 @@ int decode_online(string filename){
         
                         fRow[fHit] = RowIndex[r];
                         fCol[fHit] = ColIndex[c];
+                        Hitmap -> Fill(fCol[fHit], fRow[fHit]);
+
                         fToT_Mean[fHit] = (ColToT[c] + RowToT[r])/2.;
                         fToT_Col[fHit] = ColToT[c];
                         fToT_Row[fHit] = RowToT[r];
                         fTimestamp_Col[fHit] = ColTimestamp[c];
                         fTimestamp_Row[fHit] = RowTimestamp[r];
                         fHit++;
+
+
         
                     }
                 }//Matching

@@ -85,6 +85,7 @@ def main(args):
     bitfile.write("\n")
 
     astro.dump_fpga()
+    logger.info("Starting Run")
 
     try: # By enclosing the main loop in try/except we are able to capture keyboard interupts cleanly
 
@@ -105,9 +106,9 @@ def main(args):
 
                         i+= 1  # Increment readout count
 
-                        if i % 200 == 0:  # Print every 200 readouts(1.2s)
+                        if i % 50 == 0:  # Print every 200 readouts(1.2s)
                             logger.info(f"{i}th readout: \n {binascii.hexlify(readout)[0:100]}...")  # Print first 100 characters of hex readout
-                            astro.decode_readout(readout, i, printer=True, chip_version=3) 
+                            #astro.decode_readout(readout, i, printer=True, chip_version=3) 
 
 
 

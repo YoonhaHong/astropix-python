@@ -41,6 +41,7 @@ int check_align(const string& dirname) {
 
     vector<TH1F*> cols;
     vector<TH1F*> rows;
+    vector<TH2I*> hitmaps;
     int nplane = 0;
 
     TIter next(files);
@@ -76,8 +77,16 @@ int check_align(const string& dirname) {
             continue;
         }
 
+        TH2I* hitmap = (TH2I*)root_file -> Get("Hitmap");
+        if(!hitmap){
+            cerr << "No 'Hitmap' found in " << fname << endl;
+            root_file -> Close();
+            continue;
+        }
+
         cols.push_back(col);
         rows.push_back(row);
+        hitmaps.push_back(hitmap);
         nplane++;
 
     }
@@ -96,6 +105,7 @@ int check_align(const string& dirname) {
         draw_hist(rows[i-1]);
 
         c1->cd(i + 2*nplane);
+        hitmaps[i-1] -> DrawCopy("COLZ");
 
 
     }

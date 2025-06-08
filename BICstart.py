@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3
 import libtmux
 import configparser
 import os
@@ -6,7 +6,7 @@ import argparse
 import time
 
 SESSION_NAME = "BICSession"
-PYTHON_EXECUTABLE = "python3.9"
+PYTHON_EXECUTABLE = "python3"
 ROOT_EXECUTABLE = "root -l -q"
 PRODUCER_SCRIPT = "ASTROPIXv3Producer.py"
 DECODER_SCRIPT = "decode_online.cpp"
@@ -80,6 +80,8 @@ def start_tmux_producers(ini_file):
         win = session.new_window(attach=False, window_name=name)
         win.active_pane.send_keys(f"{PYTHON_EXECUTABLE} {PRODUCER_SCRIPT} {args}")
 
+    """
+
     win = session.new_window(attach=False, window_name="Decoder")
 
     top_pane = win.active_pane
@@ -96,6 +98,8 @@ def start_tmux_producers(ini_file):
     #bottom_pane = top_pane.split_window(attach=False, vertical=True)
     #bottom_pane.send_keys("echo 'Bottom pane ready'")
 
+    
+    """
 
     # Remove the placeholder window
     placeholder = session.find_where({"window_name": "placeholder"})

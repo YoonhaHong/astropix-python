@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Take data with given time, and then decode offline
 
