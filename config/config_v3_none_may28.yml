@@ -52,7 +52,7 @@ astropix3:
             vncomp:             [6, 2]
             vpfoll:             [6, 60]
             nu16:               [6, 0]
-            vprec:              [6, 60]
+            vprec:              [6, 15]
             vnrec:              [6, 30]
 
         vdacs:

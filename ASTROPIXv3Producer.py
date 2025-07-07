@@ -53,7 +53,7 @@ def main(args):
     astro.init_voltages(vthreshold=args.threshold)     
 
     #Enable final configuration
-    astro.enable_spi() 
+    astro.enable_spi(5) 
     astro.asic_configure()
     logger.info("Chip configured")
     astro.dump_fpga()
