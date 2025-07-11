@@ -99,6 +99,48 @@ class Nexysio(Spi):
         self.__setup()
 
         return self._handle
+    
+    def open_serial(self, serial: str):
+        """
+        Opens the FTDI device
+
+        :param index: Device serial
+
+        :returns: Device handle
+        """
+
+        device_serial = ftd.listDevices(0)
+        device_desc = ftd.listDevices(2)
+
+        serial = serial.encode('ascii')
+        filtered_serials = [serial.decode() for serial, desc in zip(device_serial, device_desc) if desc == b'Digilent USB Device A']
+
+        i = 0
+        for finds in device_serial:
+            if serial in finds: break
+            else: i+=1
+
+        self._handle = ftd.open(i)
+
+        devinfo = self._handle.getDeviceInfo()
+        
+        logger.info(f"\u001bSerial {serial}=={device_serial[i]} found @ {i}\n \u001b[0m")
+
+        try:
+            if 'description' in devinfo and devinfo['description'] == NEXYS_USB_DESC:
+                print("\u001b[32mDigilent USB A opened\n \u001b[0m")
+                logger.info("\u001b[32mDigilent USB A opened\n \u001b[0m")
+            else:
+                self.close()
+                raise NameError
+
+        except NameError:
+            logger.error('Unknown Device with index %d', i)
+            sys.exit(1)
+
+        self.__setup()
+
+        return self._handle
 
     def autoopen(self):
         """

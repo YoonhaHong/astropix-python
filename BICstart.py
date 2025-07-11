@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.9
+#!/usr/bin/env python3
 import libtmux
 import configparser
 import os
@@ -6,7 +6,7 @@ import argparse
 import time
 
 SESSION_NAME = "BICSession"
-PYTHON_EXECUTABLE = "python3.9"
+PYTHON_EXECUTABLE = "python3"
 ROOT_EXECUTABLE = "root -l -q"
 PRODUCER_SCRIPT = "ASTROPIXv3Producer.py"
 DECODER_SCRIPT = "decode_online.cpp"
@@ -43,10 +43,10 @@ def parse_ini_for_producers(ini_path):
 def build_args(config_dict, outdir):
     args = []
     for key, val in config_dict.items():
-        if key in ["serial", "plane"]:
+        if key in ["fpga_index", "plane"]:
             continue
-        elif key in ["fpga_index"]:
-            args.extend(f" {val}")
+        elif key in ["serial"]:
+            args.append(val)
         elif key in ["saveascsv"]:
             if val.lower() == "true":
                 args.append(" -c")

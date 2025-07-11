@@ -10,3 +10,6 @@ filtered_serials = [serial.decode() for serial, desc in zip(device_serial, devic
 
 # 결과 출력
 print(filtered_serials)
+
+for index in filtered_serials:
+    print(f"index: {index}, serial: ")

@@ -30,11 +30,11 @@ from modules.setup_logger import logger
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def main(args):
-        
-    # Prepare everything, create the object 
-    astro = astropixRun(chipversion=3, fpga_index=args.fpga_index) 
 
-    #Initiate asic with pixel mask as defined in yaml and analog pixel in row0 defined with input argument -a
+    # Prepare everything, create the object 
+    astro = astropixRun(chipversion=3, serial=args.serial) 
+
+    #Initiate asic with pixel mask as defined in yaml and: analog pixel in row0 defined with input argument -a
 
     astro.asic_init(yaml=args.yaml, analog_col = args.analog)
 
@@ -174,8 +174,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Astropix Driver Code')
 
-    parser.add_argument('fpga_index', type=int, action='store', default=0,
-                    help='FPGA index to use. Default: 0')
+    parser.add_argument('serial', type=str, action='store', 
+                    help='FPGA serail to use. Default: 0')
 
     parser.add_argument('-n', '--name', default='w02s03', required=False,
                     help='Option to give additional name to output files upon running')
