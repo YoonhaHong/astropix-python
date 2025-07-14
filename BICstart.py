@@ -65,7 +65,7 @@ def start_tmux_producers(ini_file):
 
     producers, outdir = parse_ini_for_producers(ini_file)
     if os.path.exists(outdir):
-        #print(f"Output directory '{outdir}' already exists. Modify \'outdir\' at {ini_file}.")
+        #print(f"Output directory20250724_CERN '{outdir}' already exists. Modify \'outdir\' at {ini_file}.")
         #exit(1)
         new_outdir = f"{outdir}_{time.strftime('%Y%m%d-%H%M%S')}"
         print(f"Output directory '{outdir}' already exists. Saving to '{new_outdir}' instead.")
@@ -104,7 +104,8 @@ def start_tmux_producers(ini_file):
     # Remove the placeholder window
     placeholder = session.find_where({"window_name": "placeholder"})
     if placeholder:
-        placeholder.kill()
+        #placeholder.kill()
+        placeholder.active_pane.send_keys(f"watch {os.path.dirname(__file__)}/CheckData.sh")
 
     print(f"tmux session '{SESSION_NAME}' created with {len(producers)} windows.")
     os.system(f"tmux attach -t {SESSION_NAME}")

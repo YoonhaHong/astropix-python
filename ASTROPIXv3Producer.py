@@ -24,6 +24,7 @@ import argparse
 import re
 from tqdm import tqdm
 import warnings
+import base64
 
 from modules.setup_logger import logger
 
@@ -96,9 +97,16 @@ def main(args):
                     readout = astro.get_readout()
 
                     if readout:  # if there is data contained in the readout stream
-                        # Writes the hex version to hits
-                        bitfile.write(f"{i}\t{str(binascii.hexlify(readout))}\n")
-                        bitfile.flush()  # simulate streaming
+
+                        if(i%args.prescale==0):
+                            # Writes the hex version to hits
+                            bitfile.write(f"{i}\t{str(binascii.hexlify(readout))}\n")
+                            bitfile.flush()  # simulate streaming
+
+                        #
+                        #b64 = base64.b64encode(readout).decode()
+                        #bitfile.write(f"{i}\t{b64}\n")
+                        #bitfile.flush()
                         
                         # Update the progress bar every iteration or based on your desired frequency
                         elapsed_time = time.time() - start_time
@@ -191,10 +199,13 @@ if __name__ == "__main__":
     
     parser.add_argument('-m', '--masking', action='store', required=False, type=str, default = None,
                         help = "Pixels to be masked. If None, no masking is applied. Format: 'c0r0,c1r1,c2r2' where cXrY is column X row Y. Default: None")
-    
-    parser.add_argument('-c', '--saveascsv', action='store_true', default=False, required=False, 
-                    help='save output files as CSV. If False, save as txt. Default: FALSE')
 
+    parser.add_argument('-p', '--prescale', type = int, action='store', default=1,
+                        help = "Prescale for saving raw file. Default: 1 ")
+    
+    parser.add_argument('-l', '--saveascsv', action='store_true', default=False, required=False, 
+                    help='save raw files as CSV. Default: FALSE')
+                    
     parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = 0,
                     help = 'Turn on analog output in the given column. Default: Column 0.')
 
